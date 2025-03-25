@@ -93,7 +93,7 @@ exports.verifyEmail = async (req, res) => {
   }
 };
 
-// تسجيل الدخول مع التحقق من تفعيل البريد الإلكتروني
+// تسجيل الدخول مع التحقق من تفعيل البريد الإلكتروني وإرسال إشعار بالبريد
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -111,6 +111,16 @@ exports.login = async (req, res) => {
 
     // إنشاء التوكن
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
+    // إرسال بريد إشعار بتسجيل الدخول
+    const loginNotificationOptions = {
+      from: `"Your App Name" <${process.env.ZOHO_EMAIL}>`,
+      to: email,
+      subject: "تنبيه: تسجيل دخول جديد",
+      text: `مرحباً ${user.name}, لقد تم تسجيل الدخول إلى حسابك بنجاح. إذا لم تقم بذلك، يرجى تغيير كلمة المرور فوراً.`
+    };
+
+    await transporter.sendMail(loginNotificationOptions);
 
     res.json({ 
       message: "تم تسجيل الدخول بنجاح", 
