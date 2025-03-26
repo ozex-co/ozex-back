@@ -39,7 +39,7 @@ exports.register = async (req, res) => {
     });
 
     // بناء رابط التفعيل (تأكد من ضبط BASE_URL مثل http://example.com)
-    const activationLink = `${process.env.BASE_URL}/verify?email=${encodeURIComponent(email)}&code=${verificationCode}`;
+    const activationLink = `${process.env.BASE_URL}/api/auth/verify?email=${encodeURIComponent(email)}&code=${verificationCode}`;
 
     // إعداد رسالة البريد الإلكتروني لإرسال رابط التفعيل
     const mailOptions = {
