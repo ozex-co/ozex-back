@@ -13,6 +13,7 @@ const serviceRoutes = require("./routes/servicesRoutes");
 const articlesRoutes = require("./routes/articleRoutes");
 const financeRoutes = require("./routes/finance");
 const adminRoutes = require("./routes/adminRoutes");
+const verifyRoutes = require('./routes/authRoutes');
 const app = express();
 
 // إعدادات Express
@@ -29,6 +30,7 @@ app.use(limiter);
 
 // استخدام المسارات
 app.use("/api/auth", authRoutes);
+app.use('/', verifyRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/services", serviceRoutes);
