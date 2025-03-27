@@ -1,121 +1,178 @@
-// controllers/pageController.js
 const Page = require("../models/Page");
+const fs = require("fs").promises;
+const path = require("path");
 
+// إنشاء صفحة جديدة
 exports.createPage = async (req, res) => {
+  const transaction = await Page.sequelize.transaction();
   try {
-    const { title, vueComponentCode, metaTags } = req.body;
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+    const { title, vue_component_code, meta_tags } = req.body;
+    const image_url = req.file ? `/uploads/pages/${req.file.filename}` : null;
 
-    console.log("🔄 محاولة إنشاء صفحة جديدة...");
-    console.log("📝 بيانات الصفحة:", { 
-      title,
-      metaTags: metaTags ? JSON.parse(metaTags) : {},
-      image: req.file ? req.file.originalname : 'لا يوجد'
-    });
-
+    // إنشاء الصفحة
     const page = await Page.create({
       title,
-      vueComponentCode,
-      metaTags: metaTags ? JSON.parse(metaTags) : {},
-      imageUrl,
+      vue_component_code,
+      meta_tags: meta_tags ? JSON.parse(meta_tags) : {},
+      image_url
+    }, { transaction });
+
+    await transaction.commit();
+    
+    res.status(201).json({
+      success: true,
+      message: "تم إنشاء الصفحة بنجاح",
+      data: page
     });
-
-    console.log("✅ تم إنشاء الصفحة بنجاح:", JSON.stringify(page, null, 2));
-    res.status(201).json({ message: "تم إنشاء الصفحة بنجاح", page });
   } catch (error) {
-    console.error("❌ خطأ أثناء إنشاء الصفحة:", error);
-    res.status(500).json({ error: "حدث خطأ أثناء إنشاء الصفحة." });
-  }
-};
-
-exports.getPage = async (req, res) => {
-  try {
-    const { id } = req.params;
-    console.log(`🔄 محاولة جلب صفحة بالمعرف: ${id}`);
-
-    const page = await Page.findByPk(id);
-    if (!page) {
-      console.log(`⚠️ الصفحة غير موجودة بالمعرف: ${id}`);
-      return res.status(404).json({ error: "الصفحة غير موجودة" });
+    await transaction.rollback();
+    
+    // حذف الملف إذا تم رفعه وفشلت العملية
+    if (req.file) {
+      await fs.unlink(req.file.path).catch(() => {});
     }
 
-    console.log(`✅ تم جلب الصفحة (ID: ${id}):`, JSON.stringify(page, null, 2));
-    res.json(page);
-  } catch (error) {
-    console.error("❌ خطأ أثناء جلب الصفحة:", error);
-    res.status(500).json({ error: "حدث خطأ أثناء جلب الصفحة." });
+    res.status(400).json({
+      success: false,
+      message: "فشل في إنشاء الصفحة",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
+// الحصول على جميع الصفحات
 exports.getAllPages = async (req, res) => {
   try {
-    console.log("🔄 محاولة جلب جميع الصفحات...");
-    const startTime = Date.now();
-    
-    const pages = await Page.findAll();
-    
-    const duration = Date.now() - startTime;
-    console.log(`✅ تم جلب ${pages.length} صفحة خلال ${duration}ms`);
-    console.log("📋 قائمة الصفحات:", pages.map(p => ({ id: p.id, title: p.title })));
-    
-    res.json(pages);
-  } catch (error) {
-    console.error("❌ خطأ أثناء جلب جميع الصفحات:", error);
-    res.status(500).json({ error: "حدث خطأ أثناء جلب الصفحات." });
-  }
-};
-
-exports.updatePage = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { title, vueComponentCode, metaTags } = req.body;
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
-
-    console.log(`🔄 محاولة تحديث صفحة بالمعرف: ${id}`);
-    console.log("📝 البيانات الجديدة:", { 
-      title: title || 'لم تتغير',
-      metaTags: metaTags ? 'محدثة' : 'لم تتغير',
-      image: req.file ? req.file.originalname : 'لا يوجد تغيير'
+    const pages = await Page.findAll({
+      order: [['created_at', 'DESC']],
+      attributes: ['id', 'title', 'image_url', 'created_at']
     });
 
-    const page = await Page.findByPk(id);
-    if (!page) {
-      console.log(`⚠️ الصفحة غير موجودة بالمعرف: ${id}`);
-      return res.status(404).json({ error: "الصفحة غير موجودة" });
-    }
-
-    page.title = title || page.title;
-    page.vueComponentCode = vueComponentCode || page.vueComponentCode;
-    page.metaTags = metaTags ? JSON.parse(metaTags) : page.metaTags;
-    if (imageUrl) page.imageUrl = imageUrl;
-
-    await page.save();
-    
-    console.log(`✅ تم تحديث الصفحة (ID: ${id}):`, JSON.stringify(page, null, 2));
-    res.json({ message: "تم تحديث الصفحة بنجاح", page });
+    res.json({
+      success: true,
+      count: pages.length,
+      data: pages
+    });
   } catch (error) {
-    console.error("❌ خطأ أثناء تحديث الصفحة:", error);
-    res.status(500).json({ error: "حدث خطأ أثناء تحديث الصفحة." });
+    res.status(500).json({
+      success: false,
+      message: "فشل في جلب الصفحات"
+    });
   }
 };
 
-exports.deletePage = async (req, res) => {
+// الحصول على صفحة واحدة
+exports.getPage = async (req, res) => {
   try {
-    const { id } = req.params;
-    console.log(`🔄 محاولة حذف صفحة بالمعرف: ${id}`);
-
-    const page = await Page.findByPk(id);
+    const page = await Page.findByPk(req.params.id);
+    
     if (!page) {
-      console.log(`⚠️ الصفحة غير موجودة بالمعرف: ${id}`);
-      return res.status(404).json({ error: "الصفحة غير موجودة" });
+      return res.status(404).json({
+        success: false,
+        message: "الصفحة غير موجودة"
+      });
     }
 
-    await page.destroy();
-    
-    console.log(`✅ تم حذف الصفحة بالمعرف: ${id}`);
-    res.json({ message: "تم حذف الصفحة بنجاح" });
+    res.json({
+      success: true,
+      data: page
+    });
   } catch (error) {
-    console.error("❌ خطأ أثناء حذف الصفحة:", error);
-    res.status(500).json({ error: "حدث خطأ أثناء حذف الصفحة." });
+    res.status(500).json({
+      success: false,
+      message: "فشل في جلب الصفحة"
+    });
+  }
+};
+
+// تحديث الصفحة
+exports.updatePage = async (req, res) => {
+  const transaction = await Page.sequelize.transaction();
+  try {
+    const page = await Page.findByPk(req.params.id, { transaction });
+    
+    if (!page) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "الصفحة غير موجودة"
+      });
+    }
+
+    const { title, vue_component_code, meta_tags } = req.body;
+    const updates = {};
+
+    if (title) updates.title = title;
+    if (vue_component_code) updates.vue_component_code = vue_component_code;
+    if (meta_tags) updates.meta_tags = JSON.parse(meta_tags);
+
+    // تحديث صورة الصفحة إذا تم رفع ملف جديد
+    if (req.file) {
+      // حذف الصورة القديمة إذا كانت موجودة
+      if (page.image_url) {
+        const oldImagePath = path.join(__dirname, '..', page.image_url);
+        await fs.unlink(oldImagePath).catch(() => {});
+      }
+      updates.image_url = `/uploads/pages/${req.file.filename}`;
+    }
+
+    await page.update(updates, { transaction });
+    await transaction.commit();
+
+    res.json({
+      success: true,
+      message: "تم تحديث الصفحة بنجاح",
+      data: page
+    });
+  } catch (error) {
+    await transaction.rollback();
+    
+    // حذف الملف الجديد إذا تم رفعه وفشلت العملية
+    if (req.file) {
+      await fs.unlink(req.file.path).catch(() => {});
+    }
+
+    res.status(400).json({
+      success: false,
+      message: "فشل في تحديث الصفحة",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// حذف الصفحة
+exports.deletePage = async (req, res) => {
+  const transaction = await Page.sequelize.transaction();
+  try {
+    const page = await Page.findByPk(req.params.id, { transaction });
+    
+    if (!page) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "الصفحة غير موجودة"
+      });
+    }
+
+    // حذف الصورة المرفقة إذا كانت موجودة
+    if (page.image_url) {
+      const imagePath = path.join(__dirname, '..', page.image_url);
+      await fs.unlink(imagePath).catch(() => {});
+    }
+
+    await page.destroy({ transaction });
+    await transaction.commit();
+
+    res.json({
+      success: true,
+      message: "تم حذف الصفحة بنجاح"
+    });
+  } catch (error) {
+    await transaction.rollback();
+    
+    res.status(500).json({
+      success: false,
+      message: "فشل في حذف الصفحة"
+    });
   }
 };
