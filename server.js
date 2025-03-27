@@ -20,12 +20,23 @@ const app = express();
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
-
+app.set('trust proxy', process.env.TRUST_PROXY || false);
 // تحديد حد الطلبات لمنع الهجمات
+const rateLimit = require('express-rate-limit');
+
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 دقيقة
-    max: 1000, // 100 طلب لكل IP
+  windowMs: 15 * 60 * 1000, // 15 دقيقة
+  max: 100, // 100 طلب لكل IP
+  message: 'تم تجاوز الحد المسموح للطلبات',
+  validate: { 
+    trustProxy: false // ← تعطيل التحقق إذا كان trust proxy مفعلاً
+  },
+  keyGenerator: (req) => {
+    // استخدام ال IP الحقيقي من header الـ X-Forwarded-For
+    return req.headers['x-forwarded-for'] || req.ip;
+  }
 });
+
 app.use(limiter);
 
 // استخدام المسارات
