@@ -11,7 +11,6 @@ const {
   deletePage
 } = require("../controllers/pageController");
 const authMiddleware = require("../middlewares/authMiddleware");
-const adminMiddleware = require("../middlewares/adminMiddleware");
 
 // إنشاء مجلد التحميلات إذا لم يكن موجوداً
 const uploadDir = path.join(__dirname, '../uploads/pages');
@@ -53,7 +52,6 @@ router.route("/")
   .get(getAllPages) // الحصول على جميع الصفحات
   .post(
     authMiddleware,
-    adminMiddleware,
     upload.single('image'),
     createPage
   ); // إنشاء صفحة جديدة
@@ -62,13 +60,11 @@ router.route("/:id")
   .get(getPage) // الحصول على صفحة واحدة
   .put(
     authMiddleware,
-    adminMiddleware,
     upload.single('image'),
     updatePage
   ) // تحديث الصفحة
   .delete(
     authMiddleware,
-    adminMiddleware,
     deletePage
   ); // حذف الصفحة
 
