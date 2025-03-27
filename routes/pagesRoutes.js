@@ -38,7 +38,7 @@ router.post("/", authMiddleware, upload.single("image"), (req, res, next) => {
   createPage(req, res, next);
 });
 
-router.get("/", authMiddleware, (req, res, next) => {
+router.get("/",  (req, res, next) => {
   console.log(`📥 طلب جلب جميع الصفحات من المستخدم (ID: ${req.user.id})`);
   console.log("🔐 صلاحيات المستخدم:", req.user.role);
   getAllPages(req, res, next);
