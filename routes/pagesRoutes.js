@@ -1,65 +1,75 @@
-// routes/pagesRoutes.js
 const express = require("express");
+const router = express.Router();
 const multer = require("multer");
+const path = require("path");
+const fs = require("fs").promises;
 const {
   createPage,
-  getPage,
   getAllPages,
+  getPage,
   updatePage,
-  deletePage,
+  deletePage
 } = require("../controllers/pageController");
 const authMiddleware = require("../middlewares/authMiddleware");
+const adminMiddleware = require("../middlewares/adminMiddleware");
 
-const router = express.Router();
+// إنشاء مجلد التحميلات إذا لم يكن موجوداً
+const uploadDir = path.join(__dirname, '../uploads/pages');
+fs.mkdir(uploadDir, { recursive: true })
+  .then(() => console.log(`📁 تم إنشاء مجلد التحميلات: ${uploadDir}`))
+  .catch(err => console.error('❌ فشل إنشاء مجلد التحميلات:', err));
 
-// إعداد Multer مع طباعـات مفصلة
+// إعداد Multer لرفع الملفات
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    console.log("📂 يتم حفظ الملف في: uploads/");
-    cb(null, "uploads/");
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    const filename = `${Date.now()}-${file.originalname}`;
-    console.log("📄 تم استقبال ملف:", file.originalname);
-    console.log("🔖 سيتم حفظه باسم:", filename);
-    cb(null, filename);
-  },
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'page-' + uniqueSuffix + ext);
+  }
 });
 
-const upload = multer({ 
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('نوع الملف غير مسموح به. يسمح فقط بصور JPEG, PNG, GIF'), false);
+  }
+};
+
+const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB
+  }
 });
 
-// مسارات الصفحات مع تفاصيل الطباعـات
-router.post("/", authMiddleware, upload.single("image"), (req, res, next) => {
-  console.log(`📥 طلب إنشاء صفحة جديدة من المستخدم `);
-  console.log("🔐 صلاحيات المستخدم:");
-  createPage(req, res, next);
-});
+// مسارات API
+router.route("/")
+  .get(getAllPages) // الحصول على جميع الصفحات
+  .post(
+    authMiddleware,
+    adminMiddleware,
+    upload.single('image'),
+    createPage
+  ); // إنشاء صفحة جديدة
 
-router.get("/",  (req, res, next) => {
-  console.log(`📥 طلب جلب جميع الصفحات من المستخدم `);
-  console.log("🔐 صلاحيات المستخدم:");
-  getAllPages(req, res, next);
-});
-
-router.get("/:id", (req, res, next) => {
-  console.log(`📥 طلب جلب صفحة بالمعرف: `);
-  console.log("🌐 IP الطالب:", req.ip);
-  getPage(req, res, next);
-});
-
-router.put("/:id", authMiddleware, upload.single("image"), (req, res, next) => {
-  console.log(`📥 طلب تحديث صفحة (ID: ) من المستخدم `);
-  console.log("🔐 صلاحيات المستخدم:");
-  updatePage(req, res, next);
-});
-
-router.delete("/:id", authMiddleware, (req, res, next) => {
-  console.log(`📥 طلب حذف صفحة (ID: ) من المستخدم `);
-  console.log("🔐 صلاحيات المستخدم:");
-  deletePage(req, res, next);
-});
+router.route("/:id")
+  .get(getPage) // الحصول على صفحة واحدة
+  .put(
+    authMiddleware,
+    adminMiddleware,
+    upload.single('image'),
+    updatePage
+  ) // تحديث الصفحة
+  .delete(
+    authMiddleware,
+    adminMiddleware,
+    deletePage
+  ); // حذف الصفحة
 
 module.exports = router;
