@@ -56,6 +56,25 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: "Something went wrong!" });
 });
 
+const sequelize = require('./config/pagesDatabase');
+const Page = require('./models/Page');
+
+// مزامنة النماذج مع قاعدة البيانات
+async function initializeDatabase() {
+  try {
+    await sequelize.authenticate();
+    console.log('✅ تم الاتصال بنجاح بقاعدة بيانات الصفحات');
+    
+    // إنشاء الجداول إذا لم تكن موجودة
+    await sequelize.sync({ force: false }); // لا تستخدم force: true في الإنتاج
+    console.log('✅ تم إنشاء الجداول بنجاح');
+  } catch (error) {
+    console.error('❌ فشل في تهيئة قاعدة البيانات:', error);
+    process.exit(1); // إيقاف التطبيق إذا فشل الاتصال
+  }
+}
+
+initializeDatabase();
 // تشغيل السيرفر
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
