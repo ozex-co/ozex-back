@@ -10,6 +10,7 @@ exports.getUsers = async (req, res) => {
             return userData;
         });
         res.json({ users: usersWithoutPassword });
+        console.log({ users: usersWithoutPassword });
     } catch (error) {
         res.status(500).json({ error: "حدث خطأ أثناء جلب المستخدمين." });
     }

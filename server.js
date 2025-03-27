@@ -8,9 +8,10 @@ const db = require("./config/database");
 // استيراد المسارات
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/usersRoutes");
-const orderRoutes = require("./routes/ordersRoutes"); 
+const orderRoutes = require("./routes/ordersRoutes");
 const serviceRoutes = require("./routes/servicesRoutes");
 const articlesRoutes = require("./routes/articleRoutes");
+const pagesRoutes = require("./routes/pagesRoutes");
 const financeRoutes = require("./routes/finance");
 const adminRoutes = require("./routes/adminRoutes");
 const app = express();
@@ -33,6 +34,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api/articles", articlesRoutes);
+app.use("/api/pages", pagesRoutes);
 app.use("/api/finance", financeRoutes);
 app.use("/api/admin", adminRoutes); // الآن لوحة التحكم لها API مخصص
 app.get("/",(req,res) =>{
