@@ -22,7 +22,6 @@ app.use(cors());
 app.use(express.json());
 app.set('trust proxy', process.env.TRUST_PROXY || false);
 // تحديد حد الطلبات لمنع الهجمات
-const rateLimit = require('express-rate-limit');
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 دقيقة
