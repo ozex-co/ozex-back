@@ -4,6 +4,8 @@ const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const db = require("./config/database");
+const pagesDb = require('./config/pagesDatabase');
+const Page = require('./models/Page');
 
 // استيراد المسارات
 const authRoutes = require("./routes/authRoutes");
@@ -52,39 +54,62 @@ app.get("/",(req,res) =>{
 })
 // Middleware لمعالجة الأخطاء العامة
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ error: "Something went wrong!" });
+  console.error('Error:', {
+    message: err.message,
+    path: req.path,
+    method: req.method,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+
+  const status = err.status || 500;
+  const message = status === 500 ? 'Internal Server Error' : err.message;
+
+  res.status(status).json({
+    success: false,
+    message,
+    ...(process.env.NODE_ENV === 'development' && { error: err.message })
+  });
 });
 
-const sequelize = require('./config/pagesDatabase');
-const Page = require('./models/Page');
-
-// مزامنة النماذج مع قاعدة البيانات
-async function initializeDatabase() {
+// ==================== تهيئة قواعد البيانات ====================
+async function initializeDatabases() {
   try {
-    await sequelize.authenticate();
-    console.log('✅ تم الاتصال بنجاح بقاعدة بيانات الصفحات');
-    
-    // إنشاء الجداول إذا لم تكن موجودة
-    await sequelize.sync({ force: false }); // لا تستخدم force: true في الإنتاج
-    console.log('✅ تم إنشاء الجداول بنجاح');
+    // قاعدة البيانات الرئيسية
+    await db.authenticate();
+    await db.sync();
+    console.log('✅ Main database connected');
+
+    // قاعدة بيانات الصفحات
+    await pagesDb.authenticate();
+    await pagesDb.sync();
+    console.log('✅ Pages database connected');
   } catch (error) {
-    console.error('❌ فشل في تهيئة قاعدة البيانات:', error);
-    process.exit(1); // إيقاف التطبيق إذا فشل الاتصال
+    console.error('❌ Database connection failed:', error);
+    process.exit(1);
   }
 }
 
-initializeDatabase();
-// تشغيل السيرفر
+// ==================== بدء الخادم ====================
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, async () => {
-    console.log(`🚀 Server is running on port ${PORT}`);
 
-    try {
-        await db.sync(); // مزامنة قاعدة البيانات الرئيسية
-        console.log("📦 Main Database synced successfully!");
+initializeDatabases().then(() => {
+  app.listen(PORT, () => {
+    console.log(`
+    ==================================
+     🚀 Server running on port ${PORT}
+     📅 ${new Date().toLocaleString()}
+     🌐 Environment: ${process.env.NODE_ENV || 'development'}
+    ==================================
+    `);
+  });
+});
 
-    } catch (error) {
-        console.error("❌ Database sync failed:", error);
-    }
+// معالجة إغلاق التطبيق بشكل أنيق
+process.on('SIGTERM', () => {
+  console.log('🛑 Server shutting down...');
+  process.exit(0);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('⚠️ Unhandled Rejection:', err);
 });
