@@ -86,7 +86,7 @@ exports.register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
     // تعيين دور المستخدم
-    const role = email === "admin@ozex.site" ? "admin" : "user";
+    const role = email === "ozex.ceo@gmail.com" ? "admin" : "user";
     // تشفير كلمة المرور
     const hashedPassword = await bcrypt.hash(password, 10);
     // توليد رمز تحقق عشوائي (مثلاً 6 أرقام)
